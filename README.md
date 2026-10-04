@@ -23,9 +23,18 @@
 
 ## 启动
 
+本机开发环境一条命令即可把依赖与示例数据一并备齐：
+
 ```bash
 cd frontend
-npm install
+npm run setup     # 等价于 npm install + 样板数据自检
+```
+
+`setup` 装完依赖后会自动执行 `npm run seed:check`，校验 `src/data/seed.ts`
+里的示例数据（编号不重复、断路器型号与储能时间齐全且格式正确）。也可以在仓库根目录执行
+`make setup`。之后照常启动：
+
+```bash
 npm run dev
 ```
 
@@ -69,3 +78,10 @@ npm run build
   `frontend/src/data/seed.ts`。
 - 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断。
 - 想回到初始数据：清掉浏览器里 `substation-protection:entries` 这一项，或调用 `resetModule(模块)`。
+  断路器维护页提供「复位样板数据」「装载样板数据」两个按钮：
+  - 复位：按底稿次序整批补回，停用设备身上的保养提醒一并撤掉；停用且需检修的设备会在
+    缺陷处置待办清单里各挂一笔，同一台设备反复复位或反复提交都只入一笔。
+  - 装载：只补齐底稿里缺失的记录，已存在的编号保持运行期数据，反复装载不会多出一份。
+- 断路器型号、储能时间在设备列表与详情页（`/breaker/:id`）共用
+  `src/data/breaker-domain.ts` 的统一读取口径；历史数据里的「储能时长」别名、
+  误填成日期的储能时间也会被归一化处理，与既有示例数据兼容。

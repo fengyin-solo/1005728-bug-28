@@ -11,6 +11,7 @@ const Faultrecord = () => import('@/views/faultrecord/index.vue')
 const Tripstat = () => import('@/views/tripstat/index.vue')
 const Transformermaint = () => import('@/views/transformermaint/index.vue')
 const Breaker = () => import('@/views/breaker/index.vue')
+const BreakerDetail = () => import('@/views/breaker/detail.vue')
 const Dcsystem = () => import('@/views/dcsystem/index.vue')
 const Insulationtest = () => import('@/views/insulationtest/index.vue')
 const Defect = () => import('@/views/defect/index.vue')
@@ -34,6 +35,7 @@ const router = createRouter({
     { path: '/tripstat', name: 'tripstat', component: Tripstat },
     { path: '/transformermaint', name: 'transformermaint', component: Transformermaint },
     { path: '/breaker', name: 'breaker', component: Breaker },
+    { path: '/breaker/:id', name: 'breaker-detail', component: BreakerDetail },
     { path: '/dcsystem', name: 'dcsystem', component: Dcsystem },
     { path: '/insulationtest', name: 'insulationtest', component: Insulationtest },
     { path: '/defect', name: 'defect', component: Defect },

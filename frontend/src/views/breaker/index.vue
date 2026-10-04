@@ -7,6 +7,8 @@
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记断路器</button>
+        <button class="btn" type="button" @click="loadSample">装载样板数据</button>
+        <button class="btn ghost" type="button" @click="resetSample">复位样板数据</button>
         <button class="btn" type="button" @click="exportRows">导出断路器维护清单</button>
       </div>
     </header>
@@ -43,9 +45,17 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in columns" :key="column">
+            <RouterLink v-if="column === '设备编号'" class="link" :to="`/breaker/${row.id}`">
+              {{ row[column] ?? '—' }}
+            </RouterLink>
+            <template v-else-if="column === '断路器型号'">{{ breakerModel(row) || '—' }}</template>
+            <template v-else-if="column === '储能时间'">{{ breakerChargeTime(row) || '—' }}</template>
+            <template v-else>{{ row[column] ?? '—' }}</template>
+          </td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
+            <RouterLink class="link" :to="`/breaker/${row.id}`">详情</RouterLink>
             <button
               v-for="action in actions"
               :key="action"
@@ -66,6 +76,7 @@
     <footer class="page-foot">
       <span>共 {{ total }} 条断路器维护记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
+      <span v-if="infoMessage" class="info-text">{{ infoMessage }}</span>
     </footer>
   </section>
 </template>
@@ -76,20 +87,23 @@ import { computed, onMounted, ref } from 'vue'
 import {
   downloadEntries,
   listEntries,
+  loadSampleModule,
   moduleMeta,
+  resetModule,
   runAction as applyAction,
 } from '@/api/local-service'
+import { breakerChargeTime, breakerModel } from '@/data/breaker-domain'
 import type { EntryRow } from '@/data/types'
 
 const meta = moduleMeta('breaker')
 const columns = ["设备编号", "所属间隔", "断路器型号", "操作次数", "储能时间", "保养周期", "上次保养日", "设备状态"]
 const actions = ["登记运行", "完成保养", "提出检修"]
 const statuses = ["待保养", "运行中", "已保养", "需检修"]
-const stats = [{"label": "运行中断路器", "value": 0}, {"label": "待保养断路器", "value": 0}, {"label": "需检修断路器", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
+const infoMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
 const statusSummary = computed(() =>
@@ -98,6 +112,12 @@ const statusSummary = computed(() =>
     count: rows.value.filter((row) => String(row.status) === status).length,
   })),
 )
+// 列表顶部的数字直接取当前数据，保证与表格、复位后的底稿对得上。
+const stats = computed(() => [
+  { label: "运行中断路器", value: rows.value.filter((row) => String(row.status) === '运行中').length },
+  { label: "待保养断路器", value: rows.value.filter((row) => String(row.status) === '待保养').length },
+  { label: "需检修断路器", value: rows.value.filter((row) => String(row.status) === '需检修').length },
+])
 
 function resetFilters() {
   filters.value = {}
@@ -112,13 +132,36 @@ function openCreate() {
   errorMessage.value = '断路器登记入口尚未接入审批流'
 }
 
+function resetSample() {
+  errorMessage.value = ''
+  infoMessage.value = ''
+  if (!window.confirm('复位样板数据会用样板底稿替换当前断路器列表，是否继续？')) {
+    return
+  }
+  const payload = resetModule(meta.key)
+  rows.value = payload.items
+  total.value = payload.total
+  infoMessage.value = '样板数据已复位：停用设备的提醒已撤销，需检修结论已同步到缺陷处置待办'
+}
+
+function loadSample() {
+  errorMessage.value = ''
+  infoMessage.value = ''
+  const payload = loadSampleModule(meta.key)
+  rows.value = payload.items
+  total.value = payload.total
+  infoMessage.value = '样板数据已补齐，已存在的设备保持原样，不会重复装载'
+}
+
 function runAction(action: string, row: EntryRow) {
   errorMessage.value = ''
+  infoMessage.value = ''
   const result = applyAction(meta.key, Number(row.id), action)
   if (!result.ok) {
     errorMessage.value = result.message
     return
   }
+  infoMessage.value = result.message
   reload()
 }
 
