@@ -23,9 +23,22 @@
 
 ## 启动
 
+本机开发环境一条命令备齐依赖与示例数据：
+
+```bash
+# 在仓库根目录
+make setup
+# 或进入 frontend
+cd frontend && npm run setup
+```
+
+`setup` 会先执行 `npm install` 安装依赖，再运行 `npm run seed` 校验
+`frontend/src/data/seed.json` 示例数据；示例数据校验是幂等的，重复执行结果一致。
+
+然后启动开发服务器：
+
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
@@ -69,3 +82,10 @@ npm run build
   `frontend/src/data/seed.ts`。
 - 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断。
 - 想回到初始数据：清掉浏览器里 `substation-protection:entries` 这一项，或调用 `resetModule(模块)`。
+  复位断路器（`resetModule('breaker')`）时会同时处理三件事：样板设备按原次序补回且不重复；
+  停用（及离开待保养态）设备身上的保养提醒一并撤掉，提醒存放在
+  `substation-protection:reminders`；由「提出检修 / 停用」流转派生出的缺陷待办一并清掉。
+- 重复装载样板用 `loadSeedModule(模块)` / `loadSeedData()`：按编号幂等对账，缺的补回、
+  已有的保留，反复调用不会多出一份。
+- 断路器停用后若需要检修，结论会落到「缺陷处置」的待处理清单；同一台设备重复提交只入账一笔。
+- 断路器详情页路由为 `/breaker/<编号>`，型号、储能时间与列表读同一份台账字段。

@@ -18,6 +18,12 @@
       </article>
     </div>
 
+    <p v-if="reminders.length" class="status-legend">
+      <span class="legend-item" v-for="reminder in reminders" :key="`${reminder.module}:${reminder.refId}`">
+        {{ reminder.title }}
+      </span>
+    </p>
+
     <p class="status-legend">
       <span v-for="item in statusSummary" :key="item.status" class="legend-item">
         {{ item.status }}：{{ item.count }}
@@ -46,6 +52,7 @@
           <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
+            <RouterLink class="link" :to="`/breaker/${row.id}`">详情</RouterLink>
             <button
               v-for="action in actions"
               :key="action"
@@ -74,22 +81,24 @@
 import { computed, onMounted, ref } from 'vue'
 
 import {
+  activeReminders,
   downloadEntries,
   listEntries,
   moduleMeta,
   runAction as applyAction,
 } from '@/api/local-service'
-import type { EntryRow } from '@/data/types'
+import type { EntryRow, ReminderRow } from '@/data/types'
 
 const meta = moduleMeta('breaker')
 const columns = ["设备编号", "所属间隔", "断路器型号", "操作次数", "储能时间", "保养周期", "上次保养日", "设备状态"]
-const actions = ["登记运行", "完成保养", "提出检修"]
-const statuses = ["待保养", "运行中", "已保养", "需检修"]
+const actions = ["登记运行", "完成保养", "提出检修", "停用"]
+const statuses = ["待保养", "运行中", "已保养", "需检修", "已停用"]
 const stats = [{"label": "运行中断路器", "value": 0}, {"label": "待保养断路器", "value": 0}, {"label": "需检修断路器", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
+const reminders = ref<ReminderRow[]>([])
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
 const statusSummary = computed(() =>
@@ -119,15 +128,16 @@ function runAction(action: string, row: EntryRow) {
     errorMessage.value = result.message
     return
   }
+  errorMessage.value = result.message
   reload()
 }
 
 function reload() {
-  errorMessage.value = ''
   try {
     const payload = listEntries(meta.key, filters.value)
     rows.value = payload.items
     total.value = payload.total
+    reminders.value = activeReminders('breaker')
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '断路器维护列表读取失败'
   }
